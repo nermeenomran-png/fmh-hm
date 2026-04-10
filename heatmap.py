@@ -5,8 +5,8 @@ import numpy as np
 import plotly.express as px
 
 #DataLoading
-lives = pd.read_csv("notchcensus.csv")
-providers = pd.read_csv("providers.csv")
+lives = pd.read_csv("data/notchcensus.csv")
+providers = pd.read_csv("data/providers.csv")
 
 #Clean
 #ColumnNamesToLower
