@@ -5,18 +5,22 @@ import numpy as np
 import plotly.express as px
 
 #DataLoading
-lives = pd.read_csv("data/notchcensus.csv")
+census = {
+    "Notch Census": "data/notchcensus.csv",
+    "Texas Census": "data/texascensus.csv"
+         }
+# pd.read_csv("data/notchcensus.csv")
 providers = pd.read_csv("data/providers.csv")
 
 #Clean
 #ColumnNamesToLower
-lives.columns = lives.columns.str.lower()
+census.columns = census.columns.str.lower()
 providers.columns = providers.columns.str.lower()
 
 #DropNACoordinates
-lives = lives.dropna(subset=['latitude', 'longitude'])
+census = census.dropna(subset=['latitude', 'longitude'])
 providers = providers.dropna(subset=['latitude', 'longitude'])
-#consider grouping by lat and long and summing members to reduce number of points on the map, but for now we'll keep them as is for more granularity
+# consider grouping by lat and long and summing members to reduce number of points on the map, but for now we'll keep them as is for more granularity
 
 #HaversineDistanceFunction
 def haversine(lat1, lon1, lat2, lon2):
@@ -33,10 +37,10 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 #CalculateNearestProvider
-def find_nearest(lives_row, providers_df):
+def find_nearest(census_row, providers_df):
     distances = haversine(
-        lives_row["latitude"],
-        lives_row["longitude"],
+        census_row["latitude"],
+        census_row["longitude"],
         providers_df["latitude"],
         providers_df["longitude"]
     )
@@ -48,7 +52,7 @@ def find_nearest(lives_row, providers_df):
 
 #UI
 #Title  
-st.title("Notch Census Coverage Heatmap")
+st.title("Lives Coverage Heatmap")
 
 #Sidebar
 #Filters
@@ -57,6 +61,14 @@ practicearea_filter = st.sidebar.multiselect(
     options=providers["pa"].unique(), 
     default=providers["pa"].unique()
     )
+selected_dataset = st.sidebar.selectbox(
+    "Select Census Dataset", 
+    options=list(census.keys())
+    )
+
+#FilterProviders
+filtered_providers = providers[providers["pa"].isin(practicearea_filter)]
+selected_dataset = pd.read_csv(census[selected_dataset])
 
 #DistanceSlider
 max_distance = st.sidebar.slider(
@@ -66,14 +78,11 @@ max_distance = st.sidebar.slider(
     value=100
     )
 
-#FilterProviders
-filtered_providers = providers[providers["pa"].isin(practicearea_filter)]
-
 #CalculateNearestProvider for filtered providers
-lives[["nearest_provider", "distance_km"]] = lives.apply(lambda row: find_nearest(row, filtered_providers), axis=1)
+selected_dataset[["nearest_provider", "distance_km"]] = selected_dataset.apply(lambda row: find_nearest(row, filtered_providers), axis=1)
 
 #FilterData
-filtered = lives[lives["distance_km"] <= max_distance]
+filtered = selected_dataset[selected_dataset["distance_km"] <= max_distance]
 
 #LivesHeatmap
 fig = px.density_map(
@@ -114,25 +123,3 @@ st.dataframe(
         "distance_km"
         ]].drop_duplicates().reset_index(drop=True)
 )
-"""
-# Define heatmap layer
-layer = pdk.Layer(
-    "HeatmapLayer",
-    data=df_tx,
-    get_position='[longitude, latitude]',
-    radiusPixels=50,
-)
-
-# Set map view (centered on Texas)
-view_state = pdk.ViewState(
-    latitude=31.0,
-    longitude=-99.0,
-    zoom=5,
-)
-
-# Render map
-st.pydeck_chart(pdk.Deck(
-    layers=[layer],
-    initial_view_state=view_state
-))
-"""
